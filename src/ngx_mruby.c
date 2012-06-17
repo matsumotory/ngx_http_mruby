@@ -6,7 +6,7 @@ mrb_state ngx_free_mruby(mrb_state *mrb_interpreter) {
     mrb_close(mrb_interpreter);
 }
 
-mrb_parser_state ngx_init_mruby_parser(ngx_str_t *source_filename) {
+mrb_parser_state ngx_init_mruby_parser(ngx_str_t *source_filename, ngx_log_t *log) {
     FILE            *source_file;
     char            *source;
     struct stat     source_file_stat;
@@ -15,14 +15,14 @@ mrb_parser_state ngx_init_mruby_parser(ngx_str_t *source_filename) {
     struct mrb_parser_state *parser;
 
     if (source_filename == NULL) {
-        // error
+        ngx_log_error(NGX_LOG_CRIT, log, "mruby source filename is invalid");
         return NULL;
     }
 
     mrb_interpreter = mrb_open();
 
     if (mrb_interpreter == NULL) {
-        // error
+        ngx_log_error(NGX_LOG_CRIT, "could not allocate mruby interpreter");
         return NULL;
     }
 
@@ -31,7 +31,7 @@ mrb_parser_state ngx_init_mruby_parser(ngx_str_t *source_filename) {
     stat(source_filename, &source_file_stat);
 
     if (source_file_stat == NULL) {
-        // error
+        ngx_log_error(NGX_LOG_CRIT, log, "mruby file '%s' does not exist.", source_filename);
         return NULL;
     }
 
@@ -40,7 +40,7 @@ mrb_parser_state ngx_init_mruby_parser(ngx_str_t *source_filename) {
     source = malloc(source_size);
 
     if (source == NULL) {
-        // error
+        ngx_log_error(NGX_LOG_CRIT, log, "could not allocate memory for mruby source");
         return NULL;
     }
 
@@ -50,7 +50,13 @@ mrb_parser_state ngx_init_mruby_parser(ngx_str_t *source_filename) {
     fread(source, sizeof(char), source_file_stat.st_size, source_file);
 
     if (ferror(source_file)) {
-        // error
+        ngx_log_error(
+            NGX_LOG_CRIT, 
+            log, 
+            "could not read mruby file '%s': %s", 
+            source_filename, 
+            ngx_strerror(ferror(source_file))
+        );
         return NULL;
     } else {
         fclose(source_file);
