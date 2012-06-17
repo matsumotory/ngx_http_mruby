@@ -6,7 +6,7 @@ mrb_state ngx_free_mruby(mrb_state *mrb_interpreter) {
     mrb_close(mrb_interpreter);
 }
 
-mrb_parser_state ngx_init_mruby_parser(ngx_str_t *source_filename, ngx_log_t *log) {
+mrb_parser_state ngx_init_mruby_parser(ngx_str_t *source_filename, const ngx_log_t *log) {
     FILE            *source_file;
     char            *source;
     struct stat     source_file_stat;
@@ -36,15 +36,12 @@ mrb_parser_state ngx_init_mruby_parser(ngx_str_t *source_filename, ngx_log_t *lo
     }
 
     source_size = (source_file_stat.st_size * sizeof(char)) + 1;
-
-    source = malloc(source_size);
+    source      = calloc(source_size);
 
     if (source == NULL) {
         ngx_log_error(NGX_LOG_CRIT, log, "could not allocate memory for mruby source");
         return NULL;
     }
-
-    memset(source, 0, source_size);
 
     source_file = fopen(source_filename, "r");
     fread(source, sizeof(char), source_file_stat.st_size, source_file);
@@ -57,6 +54,9 @@ mrb_parser_state ngx_init_mruby_parser(ngx_str_t *source_filename, ngx_log_t *lo
             source_filename, 
             ngx_strerror(ferror(source_file))
         );
+
+        free(source);
+
         return NULL;
     } else {
         fclose(source_file);
@@ -71,15 +71,15 @@ mrb_parser_state ngx_init_mruby_parser(ngx_str_t *source_filename, ngx_log_t *lo
     return parser;
 }
 
-ngx_int_t ngx_parse_mruby(mrb_parser_state *parser, ngx_log_t *log) {
+ngx_int_t ngx_parse_mruby(mrb_parser_state *parser, const ngx_log_t *log) {
     mrb_parser_parse(parser);
 
     if (parser->nerr > 0) {
         int i = parser->nerr;
         int x = 0;
 
-        while (++x <= i)
-            ngx_log_error(
+        while (++x <= i) {
+            ngx_log_error( 
                 NGX_LOG_CRIT,
                 log
                 "file %s, line %d: %s\n", 
@@ -87,6 +87,7 @@ ngx_int_t ngx_parse_mruby(mrb_parser_state *parser, ngx_log_t *log) {
                 parser->error_buffer[x-1].lineno, 
                 parser->error_buffer[x-1].message
             );
+        }
 
         return 1;
     }
@@ -94,7 +95,7 @@ ngx_int_t ngx_parse_mruby(mrb_parser_state *parser, ngx_log_t *log) {
     return 0;
 }
 
-ngx_int_t ngx_eval_mruby(mrb_state *mrb_interpreter, mrb_parser_state *parser, mrb_value *mrb_return_value, ngx_log_t *log) {
+ngx_int_t ngx_eval_mruby(mrb_state *mrb_interpreter, mrb_parser_state *parser, mrb_value *mrb_return_value, const ngx_log_t *log) {
     *mrb_return_value = 
         mrb_run(
             mrb_interpreter,
