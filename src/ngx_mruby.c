@@ -3,8 +3,7 @@ mrb_state ngx_init_mruby(void) {
 }
 
 mrb_state ngx_free_mruby(mrb_state *mrb_interpreter) {
-    // ????
-    return;
+    mrb_close(mrb_interpreter);
 }
 
 mrb_parser_state ngx_init_mruby_parser(ngx_str_t *source_filename) {
