@@ -71,6 +71,52 @@ mrb_parser_state ngx_init_mruby_parser(ngx_str_t *source_filename, ngx_log_t *lo
     return parser;
 }
 
+ngx_int_t ngx_parse_mruby(mrb_parser_state *parser, ngx_log_t *log) {
+    mrb_parser_parse(parser);
+
+    if (parser->nerr > 0) {
+        int i = parser->nerr;
+        int x = 0;
+
+        while (++x <= i)
+            ngx_log_error(
+                NGX_LOG_CRIT,
+                log
+                "file %s, line %d: %s\n", 
+                parser->filename,
+                parser->error_buffer[x-1].lineno, 
+                parser->error_buffer[x-1].message
+            );
+
+        return 1;
+    }
+
+    return 0;
+}
+
+ngx_int_t ngx_eval_mruby(mrb_state *mrb_interpreter, mrb_parser_state *parser, mrb_value *mrb_return_value, ngx_log_t *log) {
+    *mrb_return_value = 
+        mrb_run(
+            mrb_interpreter,
+            mrb_proc_new(
+                mrb_interpreter,
+                mrb_interpreter->irep[
+                    mrb_generate_code(mrb_interpreter, parser->tree)
+                ]
+                ),
+            mrb_top_self(mrb_interpreter)
+        );
+
+    /* exception handling */
+    if (mrb_interpreter->exc) {
+        mrb_p(mrb_interpreter, mrb_obj_value(mrb_interpreter->exc));
+        mrb_interpreter->exc = NULL;
+        return 1;
+    }
+
+    return 0;
+}
+
 void ngx_free_mruby_parser(mrb_parser_state *parser) {
     // do we need to free the filename here too?
     free(parser->source);
