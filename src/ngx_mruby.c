@@ -72,7 +72,7 @@ mrb_parser_state ngx_init_mruby_parser(ngx_str_t *source_filename, const ngx_log
 }
 
 ngx_int_t ngx_parse_mruby(mrb_parser_state *parser, const ngx_log_t *log) {
-    mrb_parser_parse(parser);
+    mrb_parser_parse(parser, NULL);
 
     if (parser->nerr > 0) {
         int i = parser->nerr;
